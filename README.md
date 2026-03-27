@@ -1,2 +1,105 @@
 # cn-system-load-testing
+
 A cloud native system load testing tool in Golang
+
+# Description
+
+This is a system load testing tool designed to run in Kubernetes clusters to
+assess the clusters system performance. It performs CPU, memory, network and
+disk IO benchmarks in a distributed manner. This is done by running a the
+benchmark tool in individual pods across the whole Kubernetes cluster.
+During the benchmark, performance metrics are measured and written to standard
+out, which allows easy analysis via common log collection and analysis tools
+like OpenSearch. The benchmark tool can be run in two main modes: `benchmark`
+and `baseline`. In benchmark mode, the load tests aren't restricted an run
+with full capacity (within their set limits), while in baseline mode the load
+test will stay within defined usage limits and reports if defined performance
+thresholds are met. The benchmark is designed to find the maximum performance
+characteristics of the overall Kubernetes cluster and can help to optimize
+and finetune the underlaying system setup. The baseline mode is design to
+assess if a given cluster meets certain performance criteria and helps to
+ensure a given system is running properly.
+
+# Components
+
+This project consists of two main components: the benchmark tool called
+`csl-bench`, which performs the load tests and performance measurements.
+
+Further, `csl-cli` is a command line tool that helps to setup, run and
+summarize the load test on a given Kubernetes cluster.
+
+## `csl-bench`
+
+This is the main load testing work horse.
+
+### `csl-bench` Modules
+
+The benchmark tool is highly configurable and consists of the following modules:
+
+#### CPU
+
+This module will perform various calculations to generate CPU load.
+
+Configuration options:
+* `cpu_num_threads`: number of threads to use during load testing (default: 1)
+
+#### Memory
+
+This module performs heap memory allocations and deallocations as well as
+read/write operations on the allocated memory.
+
+Configuration options:
+* `memory_max_use_mb`: maximum memory in MB to use for the benchmark 
+  (default: maximum available memory for the machine or container)
+
+#### Disk IO
+
+This module performs different disk IO operations to stress the storage system
+while simulating different kinds of usage pattern.
+
+Configuration options:
+* `io_mode`: one of (default: `randomized_rw`)
+  * `txn_rw`: transactional read/write. A small batch of data (`io_batch_size_kb`)
+    is written to disk and fsynced. Afterwards the different (previously written)
+    data batch from a random location is read again. Simulates transactional database
+    IO behaviour.
+  * `sequential_rw`: Sequential read/write. A series of small batches of data
+    is written and read in sequence from the disk.
+  * `randomized_rw`: Randomized read/write. Small batches of data is written and read
+    from disk in randomized order.
+* `io_file_path`: This is the path to the data file, which is used to perform all
+   IO operations (default: `/tmp/bench-data`)
+* `io_batch_size_kb`: size of data batches to read/write at once (default: 4)
+* `io_file_size_mb` maximum file size (default: 1024)
+
+#### Network IO
+
+To be defined.
+
+### Usage
+
+It is designed to be run as a pod in a Kubernetes cluster, one can run this tool
+directly as a container on the local machine too.
+
+### Performance Metrics Output
+
+During the benchmark run, `csl-bench` will print the latest recoreded performance
+metrics in JSON format. This can be later used in log collection tools to parse
+and aggregate the results.
+
+Fields:
+* `timestamp`: current time
+* `phase`: `running` if the benchmark is still running, `summary` if the benchmark
+   has reached its desired run time.
+* ...  (tbd: module specific fields)
+
+### Common Config Options
+
+* `duration`: number of seconds to run the bench mark. Use 0 for an infinite run
+  (default: 300)
+* `interval`: number of seconds to report performance metrics (default: 1)
+
+
+## `csl-cli`
+
+To be defined.
