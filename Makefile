@@ -1,4 +1,4 @@
-BINARY_NAME := cng-bench
+BINARY_NAME := csl-bench
 BUILD_DIR   := bin
 GOFLAGS     := -trimpath
 LDFLAGS     := -s -w
@@ -8,7 +8,7 @@ LDFLAGS     := -s -w
 all: build
 
 build:
-	go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/cng-bench
+	go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/csl-bench
 
 test:
 	$(shell go env GOPATH)/bin/ginkgo -r --randomize-all --race ./...
