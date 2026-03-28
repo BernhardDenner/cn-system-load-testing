@@ -20,17 +20,33 @@ and finetune the underlaying system setup. The baseline mode is design to
 assess if a given cluster meets certain performance criteria and helps to
 ensure a given system is running properly.
 
-# Components
-
-This project consists of two main components: the benchmark tool called
-`csl-bench`, which performs the load tests and performance measurements.
-
-Further, `csl-cli` is a command line tool that helps to setup, run and
-summarize the load test on a given Kubernetes cluster.
 
 ## `csl-bench`
 
-This is the main load testing work horse.
+This is the main tool to run performance tests and to orchestrate them.
+
+### Usage
+
+`csl-bench` provides an intuitive commandline interface to control the
+runtime behavior.
+
+#### Common Config Options
+
+These options are valid for all sub commands
+
+* `-d, --duration`: number of seconds to run the bench mark. Use 0 for an infinite run
+  (default: 300)
+* `-i, --interval`: number of seconds to report performance metrics (default: 1)
+* `-m, --module`: run the given test module. Valid values are `cpu`, `memory`,
+  `disk`, `network`. Can be specified multiple times to run multiple modules at the
+  same time.
+
+#### Sub-Commands
+
+The tool provides the following sub-commands:
+
+* `benchmark`: run in benchmark mode
+* `baseline`: run in baseline mode
 
 ### `csl-bench` Modules
 
@@ -76,11 +92,6 @@ Configuration options:
 
 To be defined.
 
-### Usage
-
-It is designed to be run as a pod in a Kubernetes cluster, one can run this tool
-directly as a container on the local machine too.
-
 ### Performance Metrics Output
 
 During the benchmark run, `csl-bench` will print the latest recoreded performance
@@ -92,12 +103,6 @@ Fields:
 * `phase`: `running` if the benchmark is still running, `summary` if the benchmark
    has reached its desired run time.
 * ...  (tbd: module specific fields)
-
-### Common Config Options
-
-* `duration`: number of seconds to run the bench mark. Use 0 for an infinite run
-  (default: 300)
-* `interval`: number of seconds to report performance metrics (default: 1)
 
 
 ## `csl-cli`
