@@ -89,6 +89,19 @@ var _ = Describe("Scenario", func() {
 		Expect(info.Size()).To(Equal(int64(cfg.FileSizeMB) * 1024 * 1024))
 	})
 
+	It("removes the data file on Close", func() {
+		cfg := newConfig(diskio.ModeRandomizedRW)
+		s := diskio.New(cfg)
+
+		_ = s.Run(context.Background())
+		_, err := os.Stat(cfg.FilePath)
+		Expect(err).NotTo(HaveOccurred(), "file should exist before Close")
+
+		Expect(s.Close()).To(Succeed())
+		_, err = os.Stat(cfg.FilePath)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "file should be removed after Close")
+	})
+
 	It("wraps sequential position around file boundary", func() {
 		cfg := newConfig(diskio.ModeSequentialRW)
 		cfg.FileSizeMB = 1 // 1 MB / 4 KB = 256 batches

@@ -96,11 +96,16 @@ func (s *Scenario) Run(_ context.Context) bench.Result {
 	return bench.Result{Duration: time.Since(start), Err: err}
 }
 
-// Close releases the data file. Safe to call more than once.
+// Close closes and removes the data file. Safe to call more than once.
 func (s *Scenario) Close() error {
 	if s.file != nil {
+		path := s.file.Name()
 		err := s.file.Close()
 		s.file = nil
+		// Best-effort removal — the file may already be gone.
+		if rmErr := os.Remove(path); rmErr != nil && !os.IsNotExist(rmErr) && err == nil {
+			err = rmErr
+		}
 		return err
 	}
 	return nil
