@@ -18,9 +18,19 @@ func init() {
 	rootCmd.PersistentFlags().StringArrayP("module", "m", nil,
 		"test module to run (cpu, memory, disk, network); may be repeated")
 
-	// Module-specific flags.
+	// Module-specific flags — CPU.
 	rootCmd.PersistentFlags().Int("cpu_num_threads", 1,
 		"number of threads for the cpu module")
+
+	// Module-specific flags — Disk IO.
+	rootCmd.PersistentFlags().String("io_mode", "randomized_rw",
+		"disk IO mode (txn_rw, sequential_rw, randomized_rw)")
+	rootCmd.PersistentFlags().String("io_file_path", "/tmp/bench-data",
+		"path to the data file for IO operations")
+	rootCmd.PersistentFlags().Int("io_batch_size_kb", 4,
+		"batch size in KB for disk IO")
+	rootCmd.PersistentFlags().Int("io_file_size_mb", 1024,
+		"maximum file size in MB for disk IO")
 
 	rootCmd.AddCommand(benchmarkCmd)
 	rootCmd.AddCommand(baselineCmd)

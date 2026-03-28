@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"sync"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/BernhardDenner/cn-system-load-testing/pkg/bench"
 	"github.com/BernhardDenner/cn-system-load-testing/pkg/cpu"
+	"github.com/BernhardDenner/cn-system-load-testing/pkg/diskio"
 )
 
 // defaultCPUPiDigits controls how many digits of pi each CPU thread computes
@@ -29,17 +31,33 @@ var benchmarkCmd = &cobra.Command{
 	RunE:  runBenchmark,
 }
 
+// moduleParams bundles all per-module flag values so buildScenarios stays
+// independent of cobra.
+type moduleParams struct {
+	cpuThreads    int
+	ioMode        string
+	ioFilePath    string
+	ioBatchSizeKB int
+	ioFileSizeMB  int
+}
+
 func runBenchmark(cmd *cobra.Command, _ []string) error {
 	modules, _ := cmd.Flags().GetStringArray("module")
 	durationSecs, _ := cmd.Flags().GetInt("duration")
 	intervalSecs, _ := cmd.Flags().GetInt("interval")
-	cpuThreads, _ := cmd.Flags().GetInt("cpu_num_threads")
+
+	params := moduleParams{}
+	params.cpuThreads, _ = cmd.Flags().GetInt("cpu_num_threads")
+	params.ioMode, _ = cmd.Flags().GetString("io_mode")
+	params.ioFilePath, _ = cmd.Flags().GetString("io_file_path")
+	params.ioBatchSizeKB, _ = cmd.Flags().GetInt("io_batch_size_kb")
+	params.ioFileSizeMB, _ = cmd.Flags().GetInt("io_file_size_mb")
 
 	if len(modules) == 0 {
 		return fmt.Errorf("at least one module must be specified with -m/--module")
 	}
 
-	scenarios, err := buildScenarios(modules, cpuThreads)
+	scenarios, err := buildScenarios(modules, params)
 	if err != nil {
 		return err
 	}
@@ -54,6 +72,8 @@ func runBenchmark(cmd *cobra.Command, _ []string) error {
 		cancel()
 	}()
 
+	defer closeScenarios(scenarios)
+
 	return runLoop(
 		ctx,
 		scenarios,
@@ -64,7 +84,7 @@ func runBenchmark(cmd *cobra.Command, _ []string) error {
 
 // buildScenarios creates Scenario instances for each requested module name.
 // Duplicates are silently ignored.
-func buildScenarios(modules []string, cpuThreads int) ([]bench.Scenario, error) {
+func buildScenarios(modules []string, p moduleParams) ([]bench.Scenario, error) {
 	seen := make(map[string]bool)
 	var scenarios []bench.Scenario
 
@@ -77,10 +97,21 @@ func buildScenarios(modules []string, cpuThreads int) ([]bench.Scenario, error) 
 		switch m {
 		case "cpu":
 			scenarios = append(scenarios, cpu.New(cpu.Config{
-				Threads:  cpuThreads,
+				Threads:  p.cpuThreads,
 				PiDigits: defaultCPUPiDigits,
 			}))
-		case "memory", "disk", "network":
+		case "disk":
+			mode, err := diskio.ParseMode(p.ioMode)
+			if err != nil {
+				return nil, err
+			}
+			scenarios = append(scenarios, diskio.New(diskio.Config{
+				Mode:        mode,
+				FilePath:    p.ioFilePath,
+				BatchSizeKB: p.ioBatchSizeKB,
+				FileSizeMB:  p.ioFileSizeMB,
+			}))
+		case "memory", "network":
 			return nil, fmt.Errorf("module %q is not yet implemented", m)
 		default:
 			return nil, fmt.Errorf("unknown module %q: valid values are cpu, memory, disk, network", m)
@@ -168,6 +199,14 @@ func loadStats(s *moduleStats) [3]int64 {
 		atomic.LoadInt64(&s.ops),
 		atomic.LoadInt64(&s.errors),
 		atomic.LoadInt64(&s.latencyNs),
+	}
+}
+
+func closeScenarios(scenarios []bench.Scenario) {
+	for _, s := range scenarios {
+		if c, ok := s.(io.Closer); ok {
+			c.Close()
+		}
 	}
 }
 
