@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: disk-test-volume-disk-throughput
+  labels:
+    app: disk-test-volume-disk-throughput
+spec:
+  serviceName: disk-test-volume-disk-throughput
+  replicas: 3
+  selector:
+    matchLabels:
+      app: disk-test-volume-disk-throughput
+  template:
+    metadata:
+      labels:
+        app: disk-test-volume-disk-throughput
+        csl-bench.io/scrape: "true"
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: disk-test-volume-disk-throughput
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: csl-bench
+          image: bernhard97/csl-bench:0.1.0
+          args:
+            - benchmark
+            - -d
+            - "300"
+            - -m
+            - disk
+            - --io_file_path
+            - /data/bench-data
+            - --io_file_size_mb
+            - "1024"
+          ports:
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 2Gi

@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: csl-bench
+  labels:
+    app: csl-bench
+spec:
+  selector:
+    matchLabels:
+      csl-bench.io/scrape: "true"
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 10s
