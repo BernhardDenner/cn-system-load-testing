@@ -50,7 +50,7 @@ type MetricsInput struct {
 // NewMetrics constructs a Metrics record from the given input.
 func NewMetrics(in MetricsInput) Metrics {
 	m := Metrics{
-		Timestamp:    time.Now().UTC().Format(time.RFC3339),
+		Timestamp:    time.Now().UTC().Format("2006-01-02T15:04:05.000Z07:00"),
 		Phase:        in.Phase,
 		Module:       in.Module,
 		Ops:          in.TotalOps,
