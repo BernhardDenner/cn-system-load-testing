@@ -55,10 +55,12 @@ func runBaseline(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	// Wrap disk scenarios with rate limiting.
-	if ioReadBPS > 0 || ioWriteBPS > 0 {
-		for i, s := range scenarios {
-			if s.Name() == "disk" {
+	// Build per-scenario baseline targets and wrap disk scenarios with rate limiting.
+	targets := make([]baselineTarget, len(scenarios))
+	for i, s := range scenarios {
+		if s.Name() == "disk" {
+			targets[i] = baselineTarget{readBPS: ioReadBPS, writeBPS: ioWriteBPS}
+			if ioReadBPS > 0 || ioWriteBPS > 0 {
 				scenarios[i] = bench.NewThrottledScenario(s, ioReadBPS, ioWriteBPS)
 			}
 		}
@@ -82,5 +84,7 @@ func runBaseline(cmd *cobra.Command, _ []string) error {
 		time.Duration(durationSecs)*time.Second,
 		time.Duration(intervalSecs)*time.Second,
 		metricsPort,
+		bench.ModeBaseline,
+		targets,
 	)
 }

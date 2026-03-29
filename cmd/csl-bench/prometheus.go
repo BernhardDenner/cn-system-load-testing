@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -17,42 +18,50 @@ import (
 type metricsCollector struct {
 	scenarios []bench.Scenario
 	stats     []moduleStats
+	mode      string
 
 	opsDesc          *prometheus.Desc
 	errorsDesc       *prometheus.Desc
 	latencyDesc      *prometheus.Desc
 	bytesReadDesc    *prometheus.Desc
 	bytesWrittenDesc *prometheus.Desc
+	baselineMetDesc  *prometheus.Desc
 }
 
-func newMetricsCollector(scenarios []bench.Scenario, stats []moduleStats) *metricsCollector {
+func newMetricsCollector(scenarios []bench.Scenario, stats []moduleStats, mode string) *metricsCollector {
 	return &metricsCollector{
 		scenarios: scenarios,
 		stats:     stats,
+		mode:      mode,
 		opsDesc: prometheus.NewDesc(
 			"csl_bench_ops_total",
 			"Total number of operations performed.",
-			[]string{"module"}, nil,
+			[]string{"module", "mode"}, nil,
 		),
 		errorsDesc: prometheus.NewDesc(
 			"csl_bench_errors_total",
 			"Total number of failed operations.",
-			[]string{"module"}, nil,
+			[]string{"module", "mode"}, nil,
 		),
 		latencyDesc: prometheus.NewDesc(
 			"csl_bench_latency_seconds_total",
 			"Cumulative operation latency in seconds.",
-			[]string{"module"}, nil,
+			[]string{"module", "mode"}, nil,
 		),
 		bytesReadDesc: prometheus.NewDesc(
 			"csl_bench_bytes_read_total",
 			"Total bytes read.",
-			[]string{"module"}, nil,
+			[]string{"module", "mode"}, nil,
 		),
 		bytesWrittenDesc: prometheus.NewDesc(
 			"csl_bench_bytes_written_total",
 			"Total bytes written.",
-			[]string{"module"}, nil,
+			[]string{"module", "mode"}, nil,
+		),
+		baselineMetDesc: prometheus.NewDesc(
+			"csl_bench_baseline_met",
+			"Whether the baseline threshold is met (1) or not (0).",
+			[]string{"module", "mode"}, nil,
 		),
 	}
 }
@@ -63,6 +72,7 @@ func (c *metricsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.latencyDesc
 	ch <- c.bytesReadDesc
 	ch <- c.bytesWrittenDesc
+	ch <- c.baselineMetDesc
 }
 
 func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
@@ -71,24 +81,26 @@ func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
 		snap := loadStats(&c.stats[i])
 
 		ch <- prometheus.MustNewConstMetric(
-			c.opsDesc, prometheus.CounterValue, float64(snap.ops), module)
+			c.opsDesc, prometheus.CounterValue, float64(snap.ops), module, c.mode)
 		ch <- prometheus.MustNewConstMetric(
-			c.errorsDesc, prometheus.CounterValue, float64(snap.errors), module)
+			c.errorsDesc, prometheus.CounterValue, float64(snap.errors), module, c.mode)
 		ch <- prometheus.MustNewConstMetric(
-			c.latencyDesc, prometheus.CounterValue, float64(snap.latencyNs)/1e9, module)
+			c.latencyDesc, prometheus.CounterValue, float64(snap.latencyNs)/1e9, module, c.mode)
 		ch <- prometheus.MustNewConstMetric(
-			c.bytesReadDesc, prometheus.CounterValue, float64(snap.bytesRead), module)
+			c.bytesReadDesc, prometheus.CounterValue, float64(snap.bytesRead), module, c.mode)
 		ch <- prometheus.MustNewConstMetric(
-			c.bytesWrittenDesc, prometheus.CounterValue, float64(snap.bytesWritten), module)
+			c.bytesWrittenDesc, prometheus.CounterValue, float64(snap.bytesWritten), module, c.mode)
+		ch <- prometheus.MustNewConstMetric(
+			c.baselineMetDesc, prometheus.GaugeValue, float64(atomic.LoadInt64(&c.stats[i].baselineMet)), module, c.mode)
 	}
 }
 
 // startMetricsServer registers the collector and starts an HTTP server
 // serving /metrics on the given port.  The returned server can be shut down
 // via Shutdown.
-func startMetricsServer(port int, scenarios []bench.Scenario, stats []moduleStats) *http.Server {
+func startMetricsServer(port int, scenarios []bench.Scenario, stats []moduleStats, mode string) *http.Server {
 	reg := prometheus.NewRegistry()
-	reg.MustRegister(newMetricsCollector(scenarios, stats))
+	reg.MustRegister(newMetricsCollector(scenarios, stats, mode))
 
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))

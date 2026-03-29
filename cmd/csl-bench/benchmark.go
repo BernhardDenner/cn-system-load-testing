@@ -84,6 +84,8 @@ func runBenchmark(cmd *cobra.Command, _ []string) error {
 		time.Duration(durationSecs)*time.Second,
 		time.Duration(intervalSecs)*time.Second,
 		metricsPort,
+		bench.ModeBenchmark,
+		nil,
 	)
 }
 
@@ -129,6 +131,13 @@ func buildScenarios(modules []string, p moduleParams) ([]bench.Scenario, error) 
 	return scenarios, nil
 }
 
+// baselineTarget holds the configured byte-rate targets for one scenario.
+// Used only in baseline mode; nil entries mean no targets.
+type baselineTarget struct {
+	readBPS  int64
+	writeBPS int64
+}
+
 // moduleStats holds atomic counters for one running scenario.
 type moduleStats struct {
 	ops          int64
@@ -136,12 +145,14 @@ type moduleStats struct {
 	latencyNs    int64
 	bytesRead    int64
 	bytesWritten int64
+	baselineMet  int64 // 1 = met, 0 = not met; used by Prometheus
 }
 
 // runLoop runs each scenario in its own goroutine for the given duration
 // (or indefinitely when duration == 0) and prints a JSON Metrics line to
 // stdout every interval.  A final summary line is printed after the run ends.
-func runLoop(ctx context.Context, scenarios []bench.Scenario, duration, interval time.Duration, metricsPort int) error {
+// targets is a per-scenario slice of baseline targets (may be nil for benchmark mode).
+func runLoop(ctx context.Context, scenarios []bench.Scenario, duration, interval time.Duration, metricsPort int, mode string, targets []baselineTarget) error {
 	if duration > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, duration)
@@ -151,7 +162,7 @@ func runLoop(ctx context.Context, scenarios []bench.Scenario, duration, interval
 	stats := make([]moduleStats, len(scenarios))
 
 	if metricsPort > 0 {
-		srv := startMetricsServer(metricsPort, scenarios, stats)
+		srv := startMetricsServer(metricsPort, scenarios, stats, mode)
 		defer stopMetricsServer(srv)
 	}
 	var wg sync.WaitGroup
@@ -191,7 +202,11 @@ func runLoop(ctx context.Context, scenarios []bench.Scenario, duration, interval
 			elapsed := t.Sub(lastTick)
 			for i, s := range scenarios {
 				snap := loadStats(&stats[i])
-				emitMetrics(s.Name(), bench.PhaseRunning, snap, prev[i], elapsed)
+				tgt := targetFor(targets, i)
+				m := emitMetrics(s.Name(), mode, bench.PhaseRunning, snap, prev[i], elapsed, tgt)
+				if m.BaselineMet != nil {
+					atomic.StoreInt64(&stats[i].baselineMet, int64(*m.BaselineMet))
+				}
 				prev[i] = snap
 			}
 			lastTick = t
@@ -201,7 +216,11 @@ func runLoop(ctx context.Context, scenarios []bench.Scenario, duration, interval
 			elapsed := time.Since(lastTick)
 			for i, s := range scenarios {
 				snap := loadStats(&stats[i])
-				emitMetrics(s.Name(), bench.PhaseSummary, snap, prev[i], elapsed)
+				tgt := targetFor(targets, i)
+				m := emitMetrics(s.Name(), mode, bench.PhaseSummary, snap, prev[i], elapsed, tgt)
+				if m.BaselineMet != nil {
+					atomic.StoreInt64(&stats[i].baselineMet, int64(*m.BaselineMet))
+				}
 			}
 			return nil
 		}
@@ -234,8 +253,16 @@ func closeScenarios(scenarios []bench.Scenario) {
 	}
 }
 
-func emitMetrics(module, phase string, snap, prev statsSnapshot, elapsed time.Duration) {
+func targetFor(targets []baselineTarget, i int) baselineTarget {
+	if i < len(targets) {
+		return targets[i]
+	}
+	return baselineTarget{}
+}
+
+func emitMetrics(module, mode, phase string, snap, prev statsSnapshot, elapsed time.Duration, tgt baselineTarget) bench.Metrics {
 	m := bench.NewMetrics(bench.MetricsInput{
+		Mode:                 mode,
 		Module:               module,
 		Phase:                phase,
 		Elapsed:              elapsed,
@@ -247,7 +274,10 @@ func emitMetrics(module, phase string, snap, prev statsSnapshot, elapsed time.Du
 		TotalBytesWritten:    snap.bytesWritten,
 		IntervalBytesRead:    snap.bytesRead - prev.bytesRead,
 		IntervalBytesWritten: snap.bytesWritten - prev.bytesWritten,
+		TargetReadBPS:        tgt.readBPS,
+		TargetWriteBPS:       tgt.writeBPS,
 	})
 	data, _ := json.Marshal(m)
 	fmt.Println(string(data))
+	return m
 }
