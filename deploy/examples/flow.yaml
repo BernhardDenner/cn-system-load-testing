@@ -1,0 +1,21 @@
+apiVersion: logging.banzaicloud.io/v1beta1
+kind: Flow
+metadata:
+  name: csl-bench
+spec:
+#  match:
+#    - select:
+#        labels:
+#          csl-bench.io/scrape: "true"
+  filters:
+    - record_modifier:
+        records:
+        - logindex: csl_bench
+    - parser:
+        parse:
+          type: json
+        key_name: message
+        reserve_data: true
+        inject_key_prefix: csl_bench.
+  globalOutputRefs:
+    - opensearch
