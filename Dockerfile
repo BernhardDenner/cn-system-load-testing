@@ -1,10 +1,11 @@
 FROM golang:1.26-alpine AS builder
 
+ARG VERSION=dev
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /csl-bench ./cmd/csl-bench
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /csl-bench ./cmd/csl-bench
 
 FROM alpine:3.21
 

@@ -3,10 +3,11 @@ package main
 import "github.com/spf13/cobra"
 
 var rootCmd = &cobra.Command{
-	Use:   "csl-bench",
-	Short: "A cloud native system load testing tool",
-	Long: `csl-bench runs CPU, memory, disk and network load tests inside Kubernetes
+	Use:     "csl-bench",
+	Short:   "A cloud native system load testing tool",
+	Long:    `csl-bench runs CPU, memory, disk and network load tests inside Kubernetes
 clusters and reports performance metrics as JSON to stdout.`,
+	Version: version,
 }
 
 func init() {
