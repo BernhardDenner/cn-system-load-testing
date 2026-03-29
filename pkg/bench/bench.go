@@ -14,8 +14,10 @@ type Config struct {
 
 // Result holds the outcome of a single scenario execution.
 type Result struct {
-	Duration time.Duration
-	Err      error
+	Duration     time.Duration
+	Err          error
+	BytesRead    int64 // bytes read during this operation (0 if not applicable)
+	BytesWritten int64 // bytes written during this operation (0 if not applicable)
 }
 
 // Scenario defines the interface for a load test scenario.

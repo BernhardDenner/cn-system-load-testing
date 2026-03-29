@@ -122,9 +122,11 @@ func buildScenarios(modules []string, p moduleParams) ([]bench.Scenario, error) 
 
 // moduleStats holds atomic counters for one running scenario.
 type moduleStats struct {
-	ops       int64
-	errors    int64
-	latencyNs int64
+	ops          int64
+	errors       int64
+	latencyNs    int64
+	bytesRead    int64
+	bytesWritten int64
 }
 
 // runLoop runs each scenario in its own goroutine for the given duration
@@ -152,6 +154,8 @@ func runLoop(ctx context.Context, scenarios []bench.Scenario, duration, interval
 					r := scenario.Run(ctx)
 					atomic.AddInt64(&stats[idx].ops, 1)
 					atomic.AddInt64(&stats[idx].latencyNs, r.Duration.Nanoseconds())
+					atomic.AddInt64(&stats[idx].bytesRead, r.BytesRead)
+					atomic.AddInt64(&stats[idx].bytesWritten, r.BytesWritten)
 					if r.Err != nil {
 						atomic.AddInt64(&stats[idx].errors, 1)
 					}
@@ -163,12 +167,9 @@ func runLoop(ctx context.Context, scenarios []bench.Scenario, duration, interval
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	// Snapshot of counters at the previous tick — used to compute per-interval deltas.
-	lastOps := make([]int64, len(scenarios))
-	lastErrors := make([]int64, len(scenarios))
-	lastLatNs := make([]int64, len(scenarios))
+	// Previous snapshots — used to compute per-interval deltas.
+	prev := make([]statsSnapshot, len(scenarios))
 	lastTick := time.Now()
-	start := lastTick
 
 	for {
 		select {
@@ -176,29 +177,38 @@ func runLoop(ctx context.Context, scenarios []bench.Scenario, duration, interval
 			elapsed := t.Sub(lastTick)
 			for i, s := range scenarios {
 				snap := loadStats(&stats[i])
-				printMetrics(s.Name(), bench.PhaseRunning,
-					snap[0]-lastOps[i], snap[1]-lastErrors[i], snap[2]-lastLatNs[i], elapsed)
-				lastOps[i], lastErrors[i], lastLatNs[i] = snap[0], snap[1], snap[2]
+				emitMetrics(s.Name(), bench.PhaseRunning, snap, prev[i], elapsed)
+				prev[i] = snap
 			}
 			lastTick = t
 
 		case <-ctx.Done():
 			wg.Wait() // wait for in-flight scenario calls to finish
-			total := time.Since(start)
+			elapsed := time.Since(lastTick)
 			for i, s := range scenarios {
 				snap := loadStats(&stats[i])
-				printMetrics(s.Name(), bench.PhaseSummary, snap[0], snap[1], snap[2], total)
+				emitMetrics(s.Name(), bench.PhaseSummary, snap, prev[i], elapsed)
 			}
 			return nil
 		}
 	}
 }
 
-func loadStats(s *moduleStats) [3]int64 {
-	return [3]int64{
-		atomic.LoadInt64(&s.ops),
-		atomic.LoadInt64(&s.errors),
-		atomic.LoadInt64(&s.latencyNs),
+type statsSnapshot struct {
+	ops          int64
+	errors       int64
+	latencyNs    int64
+	bytesRead    int64
+	bytesWritten int64
+}
+
+func loadStats(s *moduleStats) statsSnapshot {
+	return statsSnapshot{
+		ops:          atomic.LoadInt64(&s.ops),
+		errors:       atomic.LoadInt64(&s.errors),
+		latencyNs:    atomic.LoadInt64(&s.latencyNs),
+		bytesRead:    atomic.LoadInt64(&s.bytesRead),
+		bytesWritten: atomic.LoadInt64(&s.bytesWritten),
 	}
 }
 
@@ -210,8 +220,20 @@ func closeScenarios(scenarios []bench.Scenario) {
 	}
 }
 
-func printMetrics(module, phase string, ops, errors, latNs int64, elapsed time.Duration) {
-	m := bench.NewMetrics(module, phase, ops, errors, latNs, elapsed)
+func emitMetrics(module, phase string, snap, prev statsSnapshot, elapsed time.Duration) {
+	m := bench.NewMetrics(bench.MetricsInput{
+		Module:               module,
+		Phase:                phase,
+		Elapsed:              elapsed,
+		TotalOps:             snap.ops,
+		TotalErrors:          snap.errors,
+		IntervalOps:          snap.ops - prev.ops,
+		IntervalLatencyNs:    snap.latencyNs - prev.latencyNs,
+		TotalBytesRead:       snap.bytesRead,
+		TotalBytesWritten:    snap.bytesWritten,
+		IntervalBytesRead:    snap.bytesRead - prev.bytesRead,
+		IntervalBytesWritten: snap.bytesWritten - prev.bytesWritten,
+	})
 	data, _ := json.Marshal(m)
 	fmt.Println(string(data))
 }

@@ -93,7 +93,12 @@ func (s *Scenario) Run(_ context.Context) bench.Result {
 		err = s.runRandomizedRW()
 	}
 
-	return bench.Result{Duration: time.Since(start), Err: err}
+	return bench.Result{
+		Duration:     time.Since(start),
+		Err:          err,
+		BytesRead:    s.batchSize,
+		BytesWritten: s.batchSize,
+	}
 }
 
 // Close closes and removes the data file. Safe to call more than once.
