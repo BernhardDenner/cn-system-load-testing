@@ -26,6 +26,10 @@ func init() {
 	rootCmd.PersistentFlags().Int("cpu_num_threads", 1,
 		"number of threads for the cpu module")
 
+	// Module-specific flags — Memory.
+	rootCmd.PersistentFlags().Int("memory_max_use_mb", 0,
+		"maximum memory in MB for the memory module; 0 = auto-detect from cgroup or system RAM")
+
 	// Module-specific flags — Disk IO.
 	rootCmd.PersistentFlags().String("io_mode", "randomized_rw",
 		"disk IO mode (txn_rw, sequential_rw, randomized_rw)")

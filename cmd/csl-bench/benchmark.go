@@ -17,6 +17,7 @@ import (
 	"github.com/BernhardDenner/cn-system-load-testing/pkg/bench"
 	"github.com/BernhardDenner/cn-system-load-testing/pkg/cpu"
 	"github.com/BernhardDenner/cn-system-load-testing/pkg/diskio"
+	"github.com/BernhardDenner/cn-system-load-testing/pkg/memory"
 )
 
 // defaultCPUPiDigits controls how many digits of pi each CPU thread computes
@@ -35,6 +36,7 @@ var benchmarkCmd = &cobra.Command{
 // independent of cobra.
 type moduleParams struct {
 	cpuThreads    int
+	memMaxUseMB   int
 	ioMode        string
 	ioFilePath    string
 	ioBatchSizeKB int
@@ -49,6 +51,7 @@ func runBenchmark(cmd *cobra.Command, _ []string) error {
 
 	params := moduleParams{}
 	params.cpuThreads, _ = cmd.Flags().GetInt("cpu_num_threads")
+	params.memMaxUseMB, _ = cmd.Flags().GetInt("memory_max_use_mb")
 	params.ioMode, _ = cmd.Flags().GetString("io_mode")
 	params.ioFilePath, _ = cmd.Flags().GetString("io_file_path")
 	params.ioBatchSizeKB, _ = cmd.Flags().GetInt("io_batch_size_kb")
@@ -113,7 +116,11 @@ func buildScenarios(modules []string, p moduleParams) ([]bench.Scenario, error) 
 				BatchSizeKB: p.ioBatchSizeKB,
 				FileSizeMB:  p.ioFileSizeMB,
 			}))
-		case "memory", "network":
+		case "memory":
+			scenarios = append(scenarios, memory.New(memory.Config{
+				MaxUseMB: p.memMaxUseMB,
+			}))
+		case "network":
 			return nil, fmt.Errorf("module %q is not yet implemented", m)
 		default:
 			return nil, fmt.Errorf("unknown module %q: valid values are cpu, memory, disk, network", m)
