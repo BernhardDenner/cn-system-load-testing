@@ -1,9 +1,11 @@
 BINARY_NAME := csl-bench
 BUILD_DIR   := bin
+IMAGE_NAME  := csl-bench
+IMAGE_TAG   := latest
 GOFLAGS     := -trimpath
 LDFLAGS     := -s -w
 
-.PHONY: all build test lint clean deps bootstrap
+.PHONY: all build test lint clean deps bootstrap image
 
 all: build
 
@@ -21,6 +23,9 @@ clean:
 
 deps:
 	go mod download
+
+image:
+	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 bootstrap:
 	go install github.com/onsi/ginkgo/v2/ginkgo@latest
