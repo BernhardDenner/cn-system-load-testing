@@ -1,7 +1,7 @@
 BINARY_NAME := csl-bench
 BUILD_DIR   := bin
 VERSION     := 0.1.0
-IMAGE_NAME  := csl-bench
+IMAGE_NAME  := bernhard97/csl-bench
 IMAGE_TAG   := $(VERSION)
 GOFLAGS     := -trimpath
 LDFLAGS     := -s -w -X main.version=$(VERSION)
@@ -27,6 +27,9 @@ deps:
 
 image:
 	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE_NAME):$(IMAGE_TAG) .
+
+push:
+	docker push $(IMAGE_NAME):$(IMAGE_TAG)
 
 bootstrap:
 	go install github.com/onsi/ginkgo/v2/ginkgo@latest
