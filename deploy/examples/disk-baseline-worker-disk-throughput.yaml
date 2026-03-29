@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: disk-test-worker-disk-throughput
+  name: disk-baseline-worker-disk-throughput
   labels:
-    app: disk-test-worker-disk-throughput
+    app: disk-baseline-worker-disk-throughput
 spec:
-  serviceName: disk-test-worker-disk-throughput
+  serviceName: disk-baseline-worker-disk-throughput
   replicas: 3
   selector:
     matchLabels:
-      app: disk-test-worker-disk-throughput
+      app: disk-baseline-worker-disk-throughput
   template:
     metadata:
       labels:
-        app: disk-test-worker-disk-throughput
+        app: disk-baseline-worker-disk-throughput
         csl-bench.io/scrape: "true"
     spec:
       affinity:
@@ -21,13 +21,13 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
                 matchLabels:
-                  app: disk-test-worker-disk-throughput
+                  app: disk-baseline-worker-disk-throughput
               topologyKey: kubernetes.io/hostname
       containers:
         - name: csl-bench
           image: bernhard97/csl-bench:0.2.0
           args:
-            - benchmark
+            - baseline
             - -d
             - "300"
             - -m
@@ -36,6 +36,10 @@ spec:
             - /data/bench-data
             - --io_file_size_mb
             - "1024"
+            - --io_read_bps
+            - "10485760"
+            - --io_write_bps
+            - "10485760"
           ports:
             - name: metrics
               containerPort: 9090

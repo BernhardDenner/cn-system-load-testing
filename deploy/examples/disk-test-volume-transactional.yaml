@@ -25,7 +25,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
         - name: csl-bench
-          image: bernhard97/csl-bench:0.1.0
+          image: bernhard97/csl-bench:0.2.0
           args:
             - benchmark
             - -d

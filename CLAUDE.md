@@ -31,38 +31,64 @@ cmd/csl-bench/      CLI (cobra)
   main.go           entry point
   root.go           root command + all persistent flags
   benchmark.go      benchmark subcommand + run loop
-  baseline.go       baseline subcommand (stub)
+  baseline.go       baseline subcommand (rate-limited mode)
+  prometheus.go     custom Prometheus collector + /metrics HTTP server
+  version.go        version variable (injected via ldflags)
 pkg/bench/          Core framework
-  bench.go          Scenario interface, Runner, Config, Result, Report
+  bench.go          Scenario interface, Result
   metrics.go        Metrics struct (JSON output), PhaseRunning/PhaseSummary constants
+  throttle.go       ThrottledScenario — rate-limiting wrapper for baseline mode
 pkg/cpu/            CPU load module
   cpu.go            Scenario implementation (LockOSThread per goroutine)
   pi.go             ComputePi — Chudnovsky algorithm with binary splitting
 pkg/diskio/         Disk IO load module
   diskio.go         Scenario with three IO modes, lazy file init, io.Closer
+pkg/memory/         Memory load module
+  memory.go         Ring buffer of 1 MB blocks, allocate/write/read/evict per Run()
+  sysinfo_linux.go  cgroup v2/v1 then sysinfo memory detection
+  sysinfo_other.go  1 GB fallback for non-Linux
+deploy/examples/    Kubernetes deployment manifests
 ```
 
 ### Core abstractions (`pkg/bench`)
 
 - **`Scenario`** — interface every module implements: `Name() string` and `Run(ctx) Result`
 - **`Result`** — outcome of one `Run` call: `Duration` and `Err`
-- **`Metrics`** — JSON record printed each interval and as a final summary; fields: `timestamp`, `phase`, `module`, `ops`, `ops_per_sec`, `avg_latency_ms`, `errors`
-- **`Runner`** / `Config` / `Report` — reserved for future single-run / reporting use; currently stub
+- **`Metrics`** — JSON record printed each interval and as a final summary; fields: `timestamp`, `phase`, `module`, `ops`, `ops_per_sec`, `avg_latency_ms`, `errors`, `bytes_read`, `bytes_written`, `bytes_read_per_sec`, `bytes_written_per_sec`
+- **`ThrottledScenario`** — wraps any `Scenario` to enforce read/write bytes-per-second rate limits; used by the baseline command for disk IO throttling
 
 ### CLI flags (`cmd/csl-bench`)
 
-All flags are persistent (available to both `benchmark` and `baseline`):
+Global flags (available to both `benchmark` and `baseline`):
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--duration` | `-d` | 300 | seconds to run; 0 = infinite |
 | `--interval` | `-i` | 1 | seconds between metric reports |
 | `--module` | `-m` | — | module to run; repeatable |
+| `--metrics_port` | — | 9090 | Prometheus /metrics port; 0 to disable |
 | `--cpu_num_threads` | — | 1 | threads for the cpu module |
+| `--memory_max_use_mb` | — | 0 | max memory in MB; 0 = auto-detect |
 | `--io_mode` | — | `randomized_rw` | disk IO pattern (`txn_rw`, `sequential_rw`, `randomized_rw`) |
 | `--io_file_path` | — | `/tmp/bench-data` | data file path |
 | `--io_batch_size_kb` | — | 4 | read/write batch size in KB |
 | `--io_file_size_mb` | — | 1024 | data file size in MB |
+
+Baseline-only flags:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--io_read_bps` | 0 | max read bytes/sec for disk; 0 = unlimited |
+| `--io_write_bps` | 0 | max write bytes/sec for disk; 0 = unlimited |
+
+### Build & Docker
+
+```bash
+make image       # docker build with VERSION tag
+make push        # push to registry
+```
+
+Version is injected via `-ldflags -X main.version=...` (see `Makefile` and `Dockerfile`).
 
 ### Adding a new module
 
