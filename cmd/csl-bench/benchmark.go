@@ -45,6 +45,7 @@ func runBenchmark(cmd *cobra.Command, _ []string) error {
 	modules, _ := cmd.Flags().GetStringArray("module")
 	durationSecs, _ := cmd.Flags().GetInt("duration")
 	intervalSecs, _ := cmd.Flags().GetInt("interval")
+	metricsPort, _ := cmd.Flags().GetInt("metrics_port")
 
 	params := moduleParams{}
 	params.cpuThreads, _ = cmd.Flags().GetInt("cpu_num_threads")
@@ -79,6 +80,7 @@ func runBenchmark(cmd *cobra.Command, _ []string) error {
 		scenarios,
 		time.Duration(durationSecs)*time.Second,
 		time.Duration(intervalSecs)*time.Second,
+		metricsPort,
 	)
 }
 
@@ -132,7 +134,7 @@ type moduleStats struct {
 // runLoop runs each scenario in its own goroutine for the given duration
 // (or indefinitely when duration == 0) and prints a JSON Metrics line to
 // stdout every interval.  A final summary line is printed after the run ends.
-func runLoop(ctx context.Context, scenarios []bench.Scenario, duration, interval time.Duration) error {
+func runLoop(ctx context.Context, scenarios []bench.Scenario, duration, interval time.Duration, metricsPort int) error {
 	if duration > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, duration)
@@ -140,6 +142,11 @@ func runLoop(ctx context.Context, scenarios []bench.Scenario, duration, interval
 	}
 
 	stats := make([]moduleStats, len(scenarios))
+
+	if metricsPort > 0 {
+		srv := startMetricsServer(metricsPort, scenarios, stats)
+		defer stopMetricsServer(srv)
+	}
 	var wg sync.WaitGroup
 
 	for i, s := range scenarios {

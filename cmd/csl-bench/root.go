@@ -18,6 +18,10 @@ func init() {
 	rootCmd.PersistentFlags().StringArrayP("module", "m", nil,
 		"test module to run (cpu, memory, disk, network); may be repeated")
 
+	// Prometheus metrics endpoint.
+	rootCmd.PersistentFlags().Int("metrics_port", 9090,
+		"port for the Prometheus /metrics endpoint; 0 to disable")
+
 	// Module-specific flags — CPU.
 	rootCmd.PersistentFlags().Int("cpu_num_threads", 1,
 		"number of threads for the cpu module")
