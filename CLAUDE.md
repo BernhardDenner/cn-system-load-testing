@@ -63,7 +63,7 @@ Global flags (available to both `benchmark` and `baseline`):
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--duration` | `-d` | 300 | seconds to run; 0 = infinite |
+| `--duration` | `-d` | 0 | seconds to run; 0 = run until cancelled (default) |
 | `--interval` | `-i` | 1 | seconds between metric reports |
 | `--module` | `-m` | — | module to run; repeatable |
 | `--metrics_port` | — | 9090 | Prometheus /metrics port; 0 to disable |

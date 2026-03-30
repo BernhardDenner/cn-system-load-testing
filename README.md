@@ -50,8 +50,8 @@ Examples: `4kb`, `512mb`, `2gb`, `1073741824`
 
 These options are valid for all sub commands
 
-* `-d, --duration`: number of seconds to run the bench mark. Use 0 for an infinite run
-  (default: 300)
+* `-d, --duration`: number of seconds to run the benchmark. Use 0 to run until
+  cancelled with Ctrl-C (default: 0)
 * `-i, --interval`: number of seconds to report performance metrics (default: 1)
 * `-m, --module`: run the given test module. Valid values are `cpu`, `memory`,
   `disk`, `network`. Can be specified multiple times to run multiple modules at the

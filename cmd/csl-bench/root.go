@@ -12,8 +12,8 @@ clusters and reports performance metrics as JSON to stdout.`,
 
 func init() {
 	// Common flags available to all sub-commands.
-	rootCmd.PersistentFlags().IntP("duration", "d", 300,
-		"seconds to run the benchmark; 0 for an infinite run")
+	rootCmd.PersistentFlags().IntP("duration", "d", 0,
+		"seconds to run the benchmark; 0 = run until cancelled (default)")
 	rootCmd.PersistentFlags().IntP("interval", "i", 1,
 		"seconds between metric reports")
 	rootCmd.PersistentFlags().StringArrayP("module", "m", nil,
