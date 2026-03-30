@@ -14,9 +14,9 @@ const blockSize int64 = 1 << 20 // 1 MB
 
 // Config holds memory scenario configuration.
 type Config struct {
-	// MaxUseMB is the maximum heap memory in MB the scenario may occupy.
+	// MaxUseBytes is the maximum heap memory in bytes the scenario may occupy.
 	// A value of 0 means auto-detect from the cgroup limit or total system RAM.
-	MaxUseMB int
+	MaxUseBytes int64
 }
 
 // Scenario implements bench.Scenario for memory load testing.
@@ -37,7 +37,7 @@ type Scenario struct {
 
 // New creates a new memory load test Scenario.
 func New(config Config) *Scenario {
-	maxBytes := int64(config.MaxUseMB) * 1024 * 1024
+	maxBytes := config.MaxUseBytes
 	if maxBytes <= 0 {
 		maxBytes = availableMemoryBytes()
 	}

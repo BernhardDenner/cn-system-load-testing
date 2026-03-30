@@ -36,12 +36,12 @@ spec:
             - txn_rw
             - --io_file_path
             - /data/bench-data
-            - --io_file_size_mb
-            - "1024"
+            - --io_file_size
+            - "1gb"
             - --io_read_bps
-            - "10485760"
+            - "10mb"
             - --io_write_bps
-            - "10485760"
+            - "10mb"
           ports:
             - name: metrics
               containerPort: 9090

@@ -23,10 +23,10 @@ performance thresholds are met.`,
 
 func init() {
 	// Baseline-specific flags for disk IO rate limiting.
-	baselineCmd.Flags().Int64("io_read_bps", 0,
-		"maximum read bytes per second for disk module; 0 = unlimited")
-	baselineCmd.Flags().Int64("io_write_bps", 0,
-		"maximum write bytes per second for disk module; 0 = unlimited")
+	baselineCmd.Flags().String("io_read_bps", "0",
+		"maximum read bytes per second for disk module (e.g. 50mb, 200kb); 0 = unlimited")
+	baselineCmd.Flags().String("io_write_bps", "0",
+		"maximum write bytes per second for disk module (e.g. 50mb, 200kb); 0 = unlimited")
 }
 
 func runBaseline(cmd *cobra.Command, _ []string) error {
@@ -37,14 +37,46 @@ func runBaseline(cmd *cobra.Command, _ []string) error {
 
 	params := moduleParams{}
 	params.cpuThreads, _ = cmd.Flags().GetInt("cpu_num_threads")
-	params.memMaxUseMB, _ = cmd.Flags().GetInt("memory_max_use_mb")
 	params.ioMode, _ = cmd.Flags().GetString("io_mode")
 	params.ioFilePath, _ = cmd.Flags().GetString("io_file_path")
-	params.ioBatchSizeKB, _ = cmd.Flags().GetInt("io_batch_size_kb")
-	params.ioFileSizeMB, _ = cmd.Flags().GetInt("io_file_size_mb")
 
-	ioReadBPS, _ := cmd.Flags().GetInt64("io_read_bps")
-	ioWriteBPS, _ := cmd.Flags().GetInt64("io_write_bps")
+	if s, _ := cmd.Flags().GetString("memory_max_use"); s != "" {
+		if v, err := bench.ParseByteSize(s); err != nil {
+			return err
+		} else {
+			params.memMaxUseBytes = v
+		}
+	}
+	if s, _ := cmd.Flags().GetString("io_batch_size"); s != "" {
+		if v, err := bench.ParseByteSize(s); err != nil {
+			return err
+		} else {
+			params.ioBatchSize = v
+		}
+	}
+	if s, _ := cmd.Flags().GetString("io_file_size"); s != "" {
+		if v, err := bench.ParseByteSize(s); err != nil {
+			return err
+		} else {
+			params.ioFileSize = v
+		}
+	}
+
+	var ioReadBPS, ioWriteBPS int64
+	if s, _ := cmd.Flags().GetString("io_read_bps"); s != "" {
+		if v, err := bench.ParseByteSize(s); err != nil {
+			return err
+		} else {
+			ioReadBPS = v
+		}
+	}
+	if s, _ := cmd.Flags().GetString("io_write_bps"); s != "" {
+		if v, err := bench.ParseByteSize(s); err != nil {
+			return err
+		} else {
+			ioWriteBPS = v
+		}
+	}
 
 	if len(modules) == 0 {
 		return fmt.Errorf("at least one module must be specified with -m/--module")

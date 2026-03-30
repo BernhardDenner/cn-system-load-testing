@@ -30,6 +30,22 @@ This is the main tool to run performance tests and to orchestrate them.
 `csl-bench` provides an intuitive commandline interface to control the
 runtime behavior.
 
+#### Byte Size Values
+
+Flags that specify an amount of bytes accept a numeric value with an optional
+unit suffix (case-insensitive):
+
+| Suffix | Unit |
+|--------|------|
+| `b` | bytes |
+| `k` or `kb` | kibibytes (1 024 bytes) |
+| `m` or `mb` | mebibytes (1 024 KiB) |
+| `g` or `gb` | gibibytes (1 024 MiB) |
+
+A plain number without a suffix is interpreted as bytes.
+
+Examples: `4kb`, `512mb`, `2gb`, `1073741824`
+
 #### Common Config Options
 
 These options are valid for all sub commands
@@ -65,7 +81,7 @@ This module performs heap memory allocations and deallocations as well as
 read/write operations on the allocated memory.
 
 Configuration options:
-* `memory_max_use_mb`: maximum memory in MB to use for the benchmark 
+* `memory_max_use`: maximum memory to use for the benchmark, e.g. `512mb`, `2gb`
   (default: maximum available memory for the machine or container)
 
 #### Disk IO
@@ -75,7 +91,7 @@ while simulating different kinds of usage pattern.
 
 Configuration options:
 * `io_mode`: one of (default: `randomized_rw`)
-  * `txn_rw`: transactional read/write. A small batch of data (`io_batch_size_kb`)
+  * `txn_rw`: transactional read/write. A small batch of data (`io_batch_size`)
     is written to disk and fsynced. Afterwards the different (previously written)
     data batch from a random location is read again. Simulates transactional database
     IO behaviour.
@@ -85,8 +101,8 @@ Configuration options:
     from disk in randomized order.
 * `io_file_path`: This is the path to the data file, which is used to perform all
    IO operations (default: `/tmp/bench-data`)
-* `io_batch_size_kb`: size of data batches to read/write at once (default: 4)
-* `io_file_size_mb` maximum file size (default: 1024)
+* `io_batch_size`: size of data batches to read/write at once, e.g. `4kb`, `1mb` (default: `4kb`)
+* `io_file_size`: maximum data file size, e.g. `512mb`, `2gb` (default: `1gb`)
 
 #### Network IO
 

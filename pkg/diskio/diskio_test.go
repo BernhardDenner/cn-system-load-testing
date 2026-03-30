@@ -45,10 +45,10 @@ var _ = Describe("Scenario", func() {
 
 	newConfig := func(mode diskio.Mode) diskio.Config {
 		return diskio.Config{
-			Mode:        mode,
-			FilePath:    filepath.Join(tmpDir, "bench-data"),
-			BatchSizeKB: 4,
-			FileSizeMB:  1, // 1 MB — small for fast tests
+			Mode:      mode,
+			FilePath:  filepath.Join(tmpDir, "bench-data"),
+			BatchSize: 4 * 1024,       // 4 KB
+			FileSize:  1 * 1024 * 1024, // 1 MB — small for fast tests
 		}
 	}
 
@@ -86,7 +86,7 @@ var _ = Describe("Scenario", func() {
 
 		info, err := os.Stat(cfg.FilePath)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(info.Size()).To(Equal(int64(cfg.FileSizeMB) * 1024 * 1024))
+		Expect(info.Size()).To(Equal(cfg.FileSize))
 	})
 
 	It("removes the data file on Close", func() {
@@ -104,7 +104,7 @@ var _ = Describe("Scenario", func() {
 
 	It("wraps sequential position around file boundary", func() {
 		cfg := newConfig(diskio.ModeSequentialRW)
-		cfg.FileSizeMB = 1 // 1 MB / 4 KB = 256 batches
+		cfg.FileSize = 1 * 1024 * 1024 // 1 MB / 4 KB = 256 batches
 		s := diskio.New(cfg)
 		defer s.Close()
 

@@ -35,12 +35,12 @@ var benchmarkCmd = &cobra.Command{
 // moduleParams bundles all per-module flag values so buildScenarios stays
 // independent of cobra.
 type moduleParams struct {
-	cpuThreads    int
-	memMaxUseMB   int
-	ioMode        string
-	ioFilePath    string
-	ioBatchSizeKB int
-	ioFileSizeMB  int
+	cpuThreads      int
+	memMaxUseBytes  int64
+	ioMode          string
+	ioFilePath      string
+	ioBatchSize     int64
+	ioFileSize      int64
 }
 
 func runBenchmark(cmd *cobra.Command, _ []string) error {
@@ -51,11 +51,30 @@ func runBenchmark(cmd *cobra.Command, _ []string) error {
 
 	params := moduleParams{}
 	params.cpuThreads, _ = cmd.Flags().GetInt("cpu_num_threads")
-	params.memMaxUseMB, _ = cmd.Flags().GetInt("memory_max_use_mb")
 	params.ioMode, _ = cmd.Flags().GetString("io_mode")
 	params.ioFilePath, _ = cmd.Flags().GetString("io_file_path")
-	params.ioBatchSizeKB, _ = cmd.Flags().GetInt("io_batch_size_kb")
-	params.ioFileSizeMB, _ = cmd.Flags().GetInt("io_file_size_mb")
+
+	if s, _ := cmd.Flags().GetString("memory_max_use"); s != "" {
+		if v, err := bench.ParseByteSize(s); err != nil {
+			return err
+		} else {
+			params.memMaxUseBytes = v
+		}
+	}
+	if s, _ := cmd.Flags().GetString("io_batch_size"); s != "" {
+		if v, err := bench.ParseByteSize(s); err != nil {
+			return err
+		} else {
+			params.ioBatchSize = v
+		}
+	}
+	if s, _ := cmd.Flags().GetString("io_file_size"); s != "" {
+		if v, err := bench.ParseByteSize(s); err != nil {
+			return err
+		} else {
+			params.ioFileSize = v
+		}
+	}
 
 	if len(modules) == 0 {
 		return fmt.Errorf("at least one module must be specified with -m/--module")
@@ -113,14 +132,14 @@ func buildScenarios(modules []string, p moduleParams) ([]bench.Scenario, error) 
 				return nil, err
 			}
 			scenarios = append(scenarios, diskio.New(diskio.Config{
-				Mode:        mode,
-				FilePath:    p.ioFilePath,
-				BatchSizeKB: p.ioBatchSizeKB,
-				FileSizeMB:  p.ioFileSizeMB,
+				Mode:      mode,
+				FilePath:  p.ioFilePath,
+				BatchSize: p.ioBatchSize,
+				FileSize:  p.ioFileSize,
 			}))
 		case "memory":
 			scenarios = append(scenarios, memory.New(memory.Config{
-				MaxUseMB: p.memMaxUseMB,
+				MaxUseBytes: p.memMaxUseBytes,
 			}))
 		case "network":
 			return nil, fmt.Errorf("module %q is not yet implemented", m)

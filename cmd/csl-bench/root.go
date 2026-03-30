@@ -28,18 +28,18 @@ func init() {
 		"number of threads for the cpu module")
 
 	// Module-specific flags — Memory.
-	rootCmd.PersistentFlags().Int("memory_max_use_mb", 0,
-		"maximum memory in MB for the memory module; 0 = auto-detect from cgroup or system RAM")
+	rootCmd.PersistentFlags().String("memory_max_use", "0",
+		"maximum memory for the memory module (e.g. 512mb, 2gb); 0 = auto-detect from cgroup or system RAM")
 
 	// Module-specific flags — Disk IO.
 	rootCmd.PersistentFlags().String("io_mode", "randomized_rw",
 		"disk IO mode (txn_rw, sequential_rw, randomized_rw)")
 	rootCmd.PersistentFlags().String("io_file_path", "/tmp/bench-data",
 		"path to the data file for IO operations")
-	rootCmd.PersistentFlags().Int("io_batch_size_kb", 4,
-		"batch size in KB for disk IO")
-	rootCmd.PersistentFlags().Int("io_file_size_mb", 1024,
-		"maximum file size in MB for disk IO")
+	rootCmd.PersistentFlags().String("io_batch_size", "4kb",
+		"batch size for disk IO (e.g. 4kb, 1mb)")
+	rootCmd.PersistentFlags().String("io_file_size", "1gb",
+		"maximum data file size for disk IO (e.g. 512mb, 2gb)")
 
 	rootCmd.AddCommand(benchmarkCmd)
 	rootCmd.AddCommand(baselineCmd)

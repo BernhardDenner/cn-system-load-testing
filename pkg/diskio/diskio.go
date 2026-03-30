@@ -37,10 +37,10 @@ func ParseMode(s string) (Mode, error) {
 
 // Config holds disk IO scenario configuration.
 type Config struct {
-	Mode        Mode
-	FilePath    string
-	BatchSizeKB int
-	FileSizeMB  int
+	Mode      Mode
+	FilePath  string
+	BatchSize int64 // bytes
+	FileSize  int64 // bytes
 }
 
 // Scenario implements bench.Scenario for disk IO load testing.
@@ -61,13 +61,11 @@ type Scenario struct {
 
 // New creates a new disk IO Scenario.
 func New(config Config) *Scenario {
-	batchSize := int64(config.BatchSizeKB) * 1024
-	fileSize := int64(config.FileSizeMB) * 1024 * 1024
 	return &Scenario{
 		config:     config,
-		batchSize:  batchSize,
-		fileSize:   fileSize,
-		numBatches: fileSize / batchSize,
+		batchSize:  config.BatchSize,
+		fileSize:   config.FileSize,
+		numBatches: config.FileSize / config.BatchSize,
 	}
 }
 

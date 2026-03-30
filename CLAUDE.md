@@ -68,18 +68,20 @@ Global flags (available to both `benchmark` and `baseline`):
 | `--module` | `-m` | — | module to run; repeatable |
 | `--metrics_port` | — | 9090 | Prometheus /metrics port; 0 to disable |
 | `--cpu_num_threads` | — | 1 | threads for the cpu module |
-| `--memory_max_use_mb` | — | 0 | max memory in MB; 0 = auto-detect |
+| `--memory_max_use` | — | `0` | max memory (e.g. `512mb`, `2gb`); 0 = auto-detect |
 | `--io_mode` | — | `randomized_rw` | disk IO pattern (`txn_rw`, `sequential_rw`, `randomized_rw`) |
 | `--io_file_path` | — | `/tmp/bench-data` | data file path |
-| `--io_batch_size_kb` | — | 4 | read/write batch size in KB |
-| `--io_file_size_mb` | — | 1024 | data file size in MB |
+| `--io_batch_size` | — | `4kb` | read/write batch size (e.g. `4kb`, `1mb`) |
+| `--io_file_size` | — | `1gb` | data file size (e.g. `512mb`, `2gb`) |
 
 Baseline-only flags:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--io_read_bps` | 0 | max read bytes/sec for disk; 0 = unlimited |
-| `--io_write_bps` | 0 | max write bytes/sec for disk; 0 = unlimited |
+| `--io_read_bps` | `0` | max read bytes/sec for disk (e.g. `50mb`); 0 = unlimited |
+| `--io_write_bps` | `0` | max write bytes/sec for disk (e.g. `50mb`); 0 = unlimited |
+
+Byte-size flags accept a number with an optional suffix: `b`, `k`/`kb`, `m`/`mb`, `g`/`gb` (case-insensitive). A plain number is bytes.
 
 ### Build & Docker
 
