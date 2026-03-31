@@ -1,6 +1,6 @@
 BINARY_NAME := csl-bench
 BUILD_DIR   := bin
-VERSION     := 0.3.0
+VERSION     := 0.4.0
 IMAGE_NAME  := bernhard97/csl-bench
 IMAGE_TAG   := $(VERSION)
 GOFLAGS     := -trimpath
