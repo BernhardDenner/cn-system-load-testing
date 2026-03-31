@@ -35,6 +35,12 @@ type Scenario struct {
 	readBuf   []byte
 }
 
+// DetectMaxBytes returns the maximum available memory in bytes using cgroup
+// limits (v2 then v1) on Linux, or a 1 GiB fallback on other platforms.
+func DetectMaxBytes() int64 {
+	return availableMemoryBytes()
+}
+
 // New creates a new memory load test Scenario.
 func New(config Config) *Scenario {
 	maxBytes := config.MaxUseBytes

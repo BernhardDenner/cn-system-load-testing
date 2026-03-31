@@ -5,32 +5,33 @@ A cloud native system load testing tool in Golang
 # Description
 
 This is a system load testing tool designed to run in Kubernetes clusters to
-assess the clusters system performance. It performs CPU, memory, network and
-disk IO benchmarks in a distributed manner. This is done by running a the
-benchmark tool in individual pods across the whole Kubernetes cluster.
-During the benchmark, performance metrics are measured and written to standard
-out, which allows easy analysis via common log collection and analysis tools
-like OpenSearch. The benchmark tool can be run in two main modes: `benchmark`
-and `baseline`. In benchmark mode, the load tests aren't restricted an run
-with full capacity (within their set limits), while in baseline mode the load
-test will stay within defined usage limits and reports if defined performance
-thresholds are met. The benchmark is designed to find the maximum performance
-characteristics of the overall Kubernetes cluster and can help to optimize
-and finetune the underlaying system setup. The baseline mode is design to
-assess if a given cluster meets certain performance criteria and helps to
-ensure a given system is running properly.
+assess the cluster's system performance. It performs CPU, memory, and disk IO
+benchmarks in a distributed manner by running the benchmark tool in individual
+pods across the whole Kubernetes cluster. During the benchmark, performance
+metrics are measured and written to standard out, which allows easy analysis
+via common log collection and analysis tools like OpenSearch.
+
+The benchmark tool can be run in two main modes:
+
+* **`benchmark`**: load tests run without restrictions at full capacity. Designed
+  to find the maximum performance characteristics of the cluster and help
+  optimise and fine-tune the underlying system setup.
+* **`baseline`**: load tests run within defined usage limits. Reports whether
+  configured performance thresholds are met, making it suitable for continuous
+  health checks and detecting CPU starvation or storage degradation.
 
 
 ## `csl-bench`
 
-This is the main tool to run performance tests and to orchestrate them.
+This is the main tool to run performance tests.
 
 ### Usage
 
-`csl-bench` provides an intuitive commandline interface to control the
-runtime behavior.
+```
+csl-bench <benchmark|baseline> -m <module> [flags]
+```
 
-#### Byte Size Values
+### Byte Size Values
 
 Flags that specify an amount of bytes accept a numeric value with an optional
 unit suffix (case-insensitive):
@@ -46,81 +47,123 @@ A plain number without a suffix is interpreted as bytes.
 
 Examples: `4kb`, `512mb`, `2gb`, `1073741824`
 
-#### Common Config Options
+### Common Flags
 
-These options are valid for all sub commands
+These flags are available to both `benchmark` and `baseline`:
 
-* `-d, --duration`: number of seconds to run the benchmark. Use 0 to run until
-  cancelled with Ctrl-C (default: 0)
-* `-i, --interval`: number of seconds to report performance metrics (default: 1)
-* `-m, --module`: run the given test module. Valid values are `cpu`, `memory`,
-  `disk`, `network`. Can be specified multiple times to run multiple modules at the
-  same time.
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-d, --duration` | `0` | seconds to run; `0` = run until cancelled with Ctrl-C |
+| `-i, --interval` | `1` | seconds between metric reports |
+| `-m, --module` | — | module to run (`cpu`, `memory`, `disk`); may be repeated |
+| `--metrics_port` | `9090` | port for the Prometheus `/metrics` endpoint; `0` to disable |
+| `--cpu_num_threads` | `1` | number of threads for the CPU module |
+| `--memory_max_use` | `0` | max memory to allocate, e.g. `512mb`, `2gb`; `0` = auto-detect |
+| `--io_mode` | `randomized_rw` | disk IO pattern: `txn_rw`, `sequential_rw`, `randomized_rw` |
+| `--io_file_path` | `/tmp/bench-data` | path to the data file for IO operations |
+| `--io_batch_size` | `4kb` | read/write batch size, e.g. `4kb`, `1mb` |
+| `--io_file_size` | `1gb` | maximum data file size, e.g. `512mb`, `2gb` |
 
-#### Sub-Commands
-
-The tool provides the following sub-commands:
-
-* `benchmark`: run in benchmark mode
-* `baseline`: run in baseline mode
-
-### `csl-bench` Modules
-
-The benchmark tool is highly configurable and consists of the following modules:
+### Modules
 
 #### CPU
 
-This module will perform various calculations to generate CPU load.
-
-Configuration options:
-* `cpu_num_threads`: number of threads to use during load testing (default: 1)
+Computes π to a fixed number of decimal places (Chudnovsky algorithm) in one
+or more OS-thread-locked goroutines. Generates sustained, predictable CPU load.
 
 #### Memory
 
-This module performs heap memory allocations and deallocations as well as
-read/write operations on the allocated memory.
-
-Configuration options:
-* `memory_max_use`: maximum memory to use for the benchmark, e.g. `512mb`, `2gb`
-  (default: maximum available memory for the machine or container)
+Maintains a ring buffer of 1 MiB blocks. Each operation allocates a new block
+(write stress), stores it in the ring evicting the oldest when full, and reads
+a random existing block — exercising allocation, GC, and memory bandwidth.
 
 #### Disk IO
 
-This module performs different disk IO operations to stress the storage system
-while simulating different kinds of usage pattern.
+Performs write+read cycles on a pre-allocated data file. Three IO patterns are
+available:
 
-Configuration options:
-* `io_mode`: one of (default: `randomized_rw`)
-  * `txn_rw`: transactional read/write. A small batch of data (`io_batch_size`)
-    is written to disk and fsynced. Afterwards the different (previously written)
-    data batch from a random location is read again. Simulates transactional database
-    IO behaviour.
-  * `sequential_rw`: Sequential read/write. A series of small batches of data
-    is written and read in sequence from the disk.
-  * `randomized_rw`: Randomized read/write. Small batches of data is written and read
-    from disk in randomized order.
-* `io_file_path`: This is the path to the data file, which is used to perform all
-   IO operations (default: `/tmp/bench-data`)
-* `io_batch_size`: size of data batches to read/write at once, e.g. `4kb`, `1mb` (default: `4kb`)
-* `io_file_size`: maximum data file size, e.g. `512mb`, `2gb` (default: `1gb`)
+* **`txn_rw`** — write a batch, `fsync`, then read a different random batch.
+  Simulates transactional database IO.
+* **`sequential_rw`** — write and read batches in sequence through the file.
+* **`randomized_rw`** — write and read batches at independent random offsets.
 
-#### Network IO
+The data file is created and pre-populated on the first run and deleted on exit.
 
-To be defined.
+### Baseline Mode Flags
+
+In addition to all common flags, the `baseline` subcommand accepts:
+
+#### Disk IO rate limiting
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--io_read_bps` | `0` | max read bytes/sec, e.g. `50mb`; `0` = unlimited |
+| `--io_write_bps` | `0` | max write bytes/sec, e.g. `50mb`; `0` = unlimited |
+
+When a limit is set, the scenario throttles to that rate and `baseline_met`
+reports whether actual throughput reaches at least 98% of the target.
+
+#### CPU load control
+
+Exactly one of the following may be specified (they are mutually exclusive):
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--cpu_load_factor` | `0` | duty cycle 0.0–1.0; `0.5` = active 50% of the time |
+| `--cpu_ops_per_sec` | `0` | target π calculations per second; `baseline_met=0` if actual rate drops below 98% of target |
+
+`--cpu_load_factor` is for controlled background load generation and does not
+produce a `baseline_met` result. `--cpu_ops_per_sec` enforces a target rate and
+reports `baseline_met=0` when the system cannot sustain it — indicating CPU
+starvation or degradation.
+
+#### Memory load control
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--memory_load_factor` | `0` | fraction of available memory to allocate, e.g. `0.5` for 50%; `0` = use `--memory_max_use` or auto-detect |
 
 ### Performance Metrics Output
 
-During the benchmark run, `csl-bench` will print the latest recoreded performance
-metrics in JSON format. This can be later used in log collection tools to parse
-and aggregate the results.
+At each reporting interval and at the end of the run, `csl-bench` prints one
+JSON record per active module to stdout.
 
-Fields:
-* `timestamp`: current time
-* `phase`: `running` if the benchmark is still running, `summary` if the benchmark
-   has reached its desired run time.
-* ...  (tbd: module specific fields)
+| Field | Description |
+|-------|-------------|
+| `timestamp` | ISO 8601 timestamp with millisecond precision |
+| `mode` | `benchmark` or `baseline` |
+| `phase` | `running` during the run; `summary` at the end |
+| `module` | module name: `cpu`, `memory`, `disk` |
+| `ops` | cumulative operation count |
+| `ops_per_sec` | operations per second during the last interval |
+| `avg_latency_ms` | average operation latency in milliseconds during the last interval |
+| `errors` | cumulative error count |
+| `bytes_read` | cumulative bytes read (disk and memory modules) |
+| `bytes_written` | cumulative bytes written (disk and memory modules) |
+| `bytes_read_per_sec` | read throughput during the last interval |
+| `bytes_written_per_sec` | write throughput during the last interval |
+| `baseline_met` | `1` if all configured thresholds are met (≥98%), `0` otherwise; omitted when no threshold is configured or in benchmark mode |
 
+Example output (baseline mode, disk module):
 
-## `csl-cli`
+```json
+{"timestamp":"2026-03-31T08:00:00.000Z","mode":"baseline","phase":"running","module":"disk","ops":256,"ops_per_sec":256.0,"avg_latency_ms":0.018,"errors":0,"bytes_read":1048576,"bytes_written":1048576,"bytes_read_per_sec":1048576.0,"bytes_written_per_sec":1048576.0,"baseline_met":1}
+```
 
-To be defined.
+### Prometheus Metrics
+
+When `--metrics_port` is non-zero (default 9090), `csl-bench` exposes a
+Prometheus-compatible `/metrics` endpoint. All metrics carry `module` and `mode`
+labels.
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `csl_bench_ops_total` | counter | total operations performed |
+| `csl_bench_errors_total` | counter | total failed operations |
+| `csl_bench_latency_seconds_total` | counter | cumulative operation latency |
+| `csl_bench_bytes_read_total` | counter | total bytes read |
+| `csl_bench_bytes_written_total` | counter | total bytes written |
+| `csl_bench_baseline_met` | gauge | `1` if thresholds are met, `0` otherwise |
+
+A `PodMonitor` resource for the Prometheus Operator is provided in
+`deploy/examples/pod-monitor.yaml`.

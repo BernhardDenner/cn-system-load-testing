@@ -58,8 +58,9 @@ type MetricsInput struct {
 	IntervalBytesWritten int64
 
 	// Baseline targets — 0 means no target for that direction.
-	TargetReadBPS  int64
-	TargetWriteBPS int64
+	TargetReadBPS   int64
+	TargetWriteBPS  int64
+	TargetOpsPerSec float64
 }
 
 // NewMetrics constructs a Metrics record from the given input.
@@ -83,19 +84,24 @@ func NewMetrics(in MetricsInput) Metrics {
 		m.AvgLatMs = float64(in.IntervalLatencyNs) / float64(in.IntervalOps) / 1e6
 	}
 
-	// Compute baseline_met for baseline mode.
-	if in.Mode == ModeBaseline {
-		met := computeBaselineMet(m.BytesReadPerSec, m.BytesWrittenPerSec, in.TargetReadBPS, in.TargetWriteBPS)
+	// Compute baseline_met only when there is an active threshold to check.
+	hasThreshold := in.TargetReadBPS > 0 || in.TargetWriteBPS > 0 || in.TargetOpsPerSec > 0
+	if in.Mode == ModeBaseline && hasThreshold {
+		met := computeBaselineMet(m.OpsPerSec, m.BytesReadPerSec, m.BytesWrittenPerSec,
+			in.TargetOpsPerSec, in.TargetReadBPS, in.TargetWriteBPS)
 		m.BaselineMet = &met
 	}
 
 	return m
 }
 
-// computeBaselineMet returns 1 if the actual rates reach at least 98% of
-// the configured targets, 0 otherwise.  A target of 0 is always considered met.
-func computeBaselineMet(actualReadBPS, actualWriteBPS float64, targetReadBPS, targetWriteBPS int64) int {
+// computeBaselineMet returns 1 if all configured targets are reached at or
+// above 98%, 0 otherwise.  A target of 0 is always considered met.
+func computeBaselineMet(actualOPS, actualReadBPS, actualWriteBPS float64, targetOPS float64, targetReadBPS, targetWriteBPS int64) int {
 	const threshold = 0.98
+	if targetOPS > 0 && actualOPS < threshold*targetOPS {
+		return 0
+	}
 	if targetReadBPS > 0 && actualReadBPS < threshold*float64(targetReadBPS) {
 		return 0
 	}

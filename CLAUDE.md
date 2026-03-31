@@ -56,6 +56,8 @@ deploy/examples/    Kubernetes deployment manifests
 - **`Result`** — outcome of one `Run` call: `Duration` and `Err`
 - **`Metrics`** — JSON record printed each interval and as a final summary; fields: `timestamp`, `phase`, `module`, `ops`, `ops_per_sec`, `avg_latency_ms`, `errors`, `bytes_read`, `bytes_written`, `bytes_read_per_sec`, `bytes_written_per_sec`
 - **`ThrottledScenario`** — wraps any `Scenario` to enforce read/write bytes-per-second rate limits; used by the baseline command for disk IO throttling
+- **`LoadFactoredScenario`** — wraps any `Scenario` and sleeps proportionally after each run to enforce a duty cycle (0.0–1.0); used for background load generation with no threshold
+- **`OpsThrottledScenario`** — wraps any `Scenario` to enforce a maximum ops/sec rate; when the system cannot sustain the target, `baseline_met=0`
 
 ### CLI flags (`cmd/csl-bench`)
 
@@ -80,6 +82,9 @@ Baseline-only flags:
 |------|---------|-------------|
 | `--io_read_bps` | `0` | max read bytes/sec for disk (e.g. `50mb`); 0 = unlimited |
 | `--io_write_bps` | `0` | max write bytes/sec for disk (e.g. `50mb`); 0 = unlimited |
+| `--cpu_load_factor` | `0` | CPU duty cycle 0.0–1.0 for background load (XOR with `--cpu_ops_per_sec`) |
+| `--cpu_ops_per_sec` | `0` | target CPU ops/sec threshold; `baseline_met=0` if < 98% (XOR with `--cpu_load_factor`) |
+| `--memory_load_factor` | `0` | fraction of available memory to allocate (0.0–1.0) |
 
 Byte-size flags accept a number with an optional suffix: `b`, `k`/`kb`, `m`/`mb`, `g`/`gb` (case-insensitive). A plain number is bytes.
 

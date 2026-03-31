@@ -150,11 +150,12 @@ func buildScenarios(modules []string, p moduleParams) ([]bench.Scenario, error) 
 	return scenarios, nil
 }
 
-// baselineTarget holds the configured byte-rate targets for one scenario.
-// Used only in baseline mode; nil entries mean no targets.
+// baselineTarget holds the threshold values for one scenario in baseline mode.
+// Zero values mean no threshold for that dimension.
 type baselineTarget struct {
-	readBPS  int64
-	writeBPS int64
+	readBPS   int64
+	writeBPS  int64
+	opsPerSec float64
 }
 
 // moduleStats holds atomic counters for one running scenario.
@@ -295,6 +296,7 @@ func emitMetrics(module, mode, phase string, snap, prev statsSnapshot, elapsed t
 		IntervalBytesWritten: snap.bytesWritten - prev.bytesWritten,
 		TargetReadBPS:        tgt.readBPS,
 		TargetWriteBPS:       tgt.writeBPS,
+		TargetOpsPerSec:      tgt.opsPerSec,
 	})
 	data, _ := json.Marshal(m)
 	fmt.Println(string(data))
