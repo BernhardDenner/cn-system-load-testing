@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: csl-baseline
+  labels:
+    app: csl-baseline
+spec:
+  selector:
+    matchLabels:
+      app: csl-baseline
+  template:
+    metadata:
+      labels:
+        app: csl-baseline
+        csl-bench.io/scrape: "true"
+    spec:
+      containers:
+        - name: csl-bench
+          image: bernhard97/csl-bench:0.4.0
+          args:
+            - baseline
+            - -d
+            - "0"
+            - -m
+            - cpu
+            - -m
+            - disk
+            - --cpu_load_factor
+            - "0.5"
+            - --io_write_bps
+            - "2mb"
+            - --io_file_path
+            - /data/bench-data
+          ports:
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}
