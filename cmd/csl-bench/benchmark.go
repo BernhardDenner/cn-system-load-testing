@@ -182,7 +182,7 @@ func runLoop(ctx context.Context, scenarios []bench.Scenario, duration, interval
 	stats := make([]moduleStats, len(scenarios))
 
 	if metricsPort > 0 {
-		srv := startMetricsServer(metricsPort, scenarios, stats, mode)
+		srv := startMetricsServer(metricsPort, scenarios, stats, mode, targets)
 		defer stopMetricsServer(srv)
 	}
 	var wg sync.WaitGroup

@@ -32,8 +32,11 @@ type Metrics struct {
 	BytesReadPerSec    float64 `json:"bytes_read_per_sec,omitempty"`
 	BytesWrittenPerSec float64 `json:"bytes_written_per_sec,omitempty"`
 
-	// Baseline mode only — omitted in benchmark mode.
-	BaselineMet *int `json:"baseline_met,omitempty"`
+	// Baseline mode only — omitted in benchmark mode or when no threshold is set.
+	BaselineMet    *int     `json:"baseline_met,omitempty"`
+	TargetReadBPS  *int64   `json:"target_read_bps,omitempty"`
+	TargetWriteBPS *int64   `json:"target_write_bps,omitempty"`
+	TargetOpsPerSec *float64 `json:"target_ops_per_sec,omitempty"`
 }
 
 // MetricsInput provides the raw counters needed to build a Metrics record.
@@ -84,12 +87,24 @@ func NewMetrics(in MetricsInput) Metrics {
 		m.AvgLatMs = float64(in.IntervalLatencyNs) / float64(in.IntervalOps) / 1e6
 	}
 
-	// Compute baseline_met only when there is an active threshold to check.
+	// Emit threshold values and baseline_met only when a threshold is configured.
 	hasThreshold := in.TargetReadBPS > 0 || in.TargetWriteBPS > 0 || in.TargetOpsPerSec > 0
 	if in.Mode == ModeBaseline && hasThreshold {
 		met := computeBaselineMet(m.OpsPerSec, m.BytesReadPerSec, m.BytesWrittenPerSec,
 			in.TargetOpsPerSec, in.TargetReadBPS, in.TargetWriteBPS)
 		m.BaselineMet = &met
+		if in.TargetReadBPS > 0 {
+			v := in.TargetReadBPS
+			m.TargetReadBPS = &v
+		}
+		if in.TargetWriteBPS > 0 {
+			v := in.TargetWriteBPS
+			m.TargetWriteBPS = &v
+		}
+		if in.TargetOpsPerSec > 0 {
+			v := in.TargetOpsPerSec
+			m.TargetOpsPerSec = &v
+		}
 	}
 
 	return m

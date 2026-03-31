@@ -143,6 +143,9 @@ JSON record per active module to stdout.
 | `bytes_read_per_sec` | read throughput during the last interval |
 | `bytes_written_per_sec` | write throughput during the last interval |
 | `baseline_met` | `1` if all configured thresholds are met (≥98%), `0` otherwise; omitted when no threshold is configured or in benchmark mode |
+| `target_read_bps` | configured read bytes/sec threshold; omitted when not set |
+| `target_write_bps` | configured write bytes/sec threshold; omitted when not set |
+| `target_ops_per_sec` | configured ops/sec threshold; omitted when not set |
 
 Example output (baseline mode, disk module):
 
@@ -164,6 +167,9 @@ labels.
 | `csl_bench_bytes_read_total` | counter | total bytes read |
 | `csl_bench_bytes_written_total` | counter | total bytes written |
 | `csl_bench_baseline_met` | gauge | `1` if thresholds are met, `0` otherwise |
+| `csl_bench_target_read_bps` | gauge | configured read bytes/sec threshold; only present when set |
+| `csl_bench_target_write_bps` | gauge | configured write bytes/sec threshold; only present when set |
+| `csl_bench_target_ops_per_sec` | gauge | configured ops/sec threshold; only present when set |
 
 A `PodMonitor` resource for the Prometheus Operator is provided in
 `deploy/examples/pod-monitor.yaml`.
